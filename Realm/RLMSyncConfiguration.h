@@ -24,6 +24,64 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
+ How to handle sync client reset events.
+
+ Realm's data synchronization works using a history of changes made which is
+ shared between the server and each client. In some cases (such as if an
+ out-of-date backup is restored on the server) the history may get out of sync
+ between the client and server, and a client resync is required to resume data
+ synchronization.
+
+ By default, this works by making a backup copy of the local Realm, marking the
+ non-backup copy for deletion so that it's deleted and redownloaded the next
+ time it's opened, and then reporting a client reset error to the error handler
+ set on RLMSyncManager. In this mode you must close and re-open the Realm in
+ response to the error, and then manually recover any unsyncronized data from
+ the backup (if desired).
+
+ Full synchronization also supports automatic recovery, with optional recovery
+ of any unsynchronized local changes. In this mode no error is reported and
+ Realm will automatically do everything required to resume synchronization.
+ Automatic recovery for query-based synchronization will come in a future version.
+ */
+typedef NS_ENUM(NSUInteger, RLMClientResyncMode) {
+    /**
+     Report a client reset error.
+
+     This is currently the only mode supported for query-based sync. Support for
+     automatic resync with query-based Realms will come in a future version.
+     */
+    RLMClientResyncManual = 2,
+
+    /**
+     Automatically recover from the client resync error, attempting to recover
+     unsynchronized local changes.
+
+     This mode downloads the latest state from the server and then applies all
+     write transactions which were made locally and never synchronized to the
+     server on top of the that state.
+
+     This mode will become the default in a future version.
+     */
+    RLMClientResyncAutomaticallyRecoverChanges = 0,
+
+    /**
+     Automatically recover from the client resync error, discarding any local
+     changes which were never uploaded to the server.
+
+     This mode downloads the latest state from the server and overwrites all
+     local data with the server state, then resumes synchronizaing normally.
+     Any write transactions which were performed locally and never uploaded to
+     the server are lost.
+
+     This mode is appropriate when local writes are either only transient data,
+     or when you would prefer to err on the side of losing writes rather than
+     potentially applying changes to a later version that it no longer applies to.
+     */
+    RLMClientResyncDiscardLocalChanges = 1,
+};
+
+/**
  A configuration object representing configuration state for a Realm which is intended to sync with a Realm Object
  Server.
  */
@@ -90,6 +148,11 @@ NS_ASSUME_NONNULL_BEGIN
  If no value is specified here then the default `/realm-sync` path is used.
 */
 @property (nonatomic, nullable, copy) NSString *urlPrefix;
+
+/**
+ How to handle client resync events.
+ */
+@property (nonatomic) RLMClientResyncMode clientResyncMode;
 
 /**
  Create a sync configuration instance.

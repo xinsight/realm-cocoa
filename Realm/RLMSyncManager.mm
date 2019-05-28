@@ -179,8 +179,6 @@ static RLMSyncManager *s_sharedManager = nil;
                    session:(RLMSyncSession *)session
                   userInfo:(NSDictionary *)userInfo
                 errorClass:(RLMSyncSystemErrorKind)errorClass {
-    NSError *error = nil;
-    BOOL shouldMakeError = YES;
     NSDictionary *custom = nil;
     // Note that certain types of errors are 'interactive'; users have several options
     // as to how to proceed after the error is reported.
@@ -207,17 +205,25 @@ static RLMSyncManager *s_sharedManager = nil;
         case RLMSyncSystemErrorKindConnection:
         case RLMSyncSystemErrorKindClient:
         case RLMSyncSystemErrorKindUnknown:
+            if (!fatal) {
+                return;
+            }
             // Report the error. There's nothing the user can do about it, though.
-            shouldMakeError = fatal;
             break;
     }
-    error = shouldMakeError ? make_sync_error(errorClass, message, errorCode, custom) : nil;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (!self.errorHandler || !error) {
-            return;
+    NSError *error = make_sync_error(errorClass, message, errorCode, custom);
+    if (_fireErrorsSynchronously) {
+        if (auto errorHandler = _errorHandler) {
+            errorHandler(error, session);
         }
-        self.errorHandler(error, session);
-    });
+    }
+    else {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (auto errorHandler = _errorHandler) {
+                errorHandler(error, session);
+            }
+        });
+    }
 }
 
 - (NSArray<RLMSyncUser *> *)_allUsers {

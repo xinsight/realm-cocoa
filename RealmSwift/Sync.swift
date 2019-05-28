@@ -209,6 +209,29 @@ public enum ServerValidationPolicy {
 }
 
 /**
+ How to handle sync client reset events.
+
+ Realm's data synchronization works using a history of changes made which is
+ shared between the server and each client. In some cases (such as if an
+ out-of-date backup is restored on the server) the history may get out of sync
+ between the client and server, and a client resync is required to resume data
+ synchronization.
+
+ By default, this works by making a backup copy of the local Realm, marking the
+ non-backup copy for deletion so that it's deleted and redownloaded the next
+ time it's opened, and then reporting a client reset error to the error handler
+ set on RLMSyncManager. In this mode you must close and re-open the Realm in
+ response to the error, and then manually recover any unsyncronized data from
+ the backup (if desired).
+
+ Full synchronization also supports automatic recovery, with optional recovery
+ of any unsynchronized local changes. In this mode no error is reported and
+ Realm will automatically do everything required to resume synchronization.
+ Automatic recovery for query-based synchronization will come in a future version.
+ */
+public typealias ClientResyncMode = RLMClientResyncMode
+
+/**
  A `SyncConfiguration` represents configuration parameters for Realms intended to sync with
  a Realm Object Server.
  */
@@ -277,6 +300,11 @@ public struct SyncConfiguration {
      */
     public let urlPrefix: String?
 
+    /**
+     How to handle client resync events.
+     */
+    public let clientResyncMode: ClientResyncMode
+
     internal init(config: RLMSyncConfiguration) {
         self.user = config.user
         self.realmURL = config.realmURL
@@ -288,6 +316,7 @@ public struct SyncConfiguration {
         }
         self.fullSynchronization = config.fullSynchronization
         self.urlPrefix = config.urlPrefix
+        self.clientResyncMode = config.clientResyncMode
     }
 
     func asConfig() -> RLMSyncConfiguration {
@@ -333,6 +362,7 @@ public struct SyncConfiguration {
         self.serverValidationPolicy = enableSSLValidation ? .system : .none
         self.fullSynchronization = !isPartial
         self.urlPrefix = urlPrefix
+        self.clientResyncMode = .manual
     }
 
     /**
@@ -574,8 +604,9 @@ extension SyncUser {
 
      - warning: NEVER disable SSL validation for a system running in production.
      */
+    @available(*, deprecated, message: "Set serverValidationPolicy rather than enableSSLValidation")
     public func configuration(realmURL: URL? = nil, fullSynchronization: Bool = false,
-                              enableSSLValidation: Bool = true, urlPrefix: String? = nil) -> Realm.Configuration {
+                              enableSSLValidation: Bool, urlPrefix: String? = nil) -> Realm.Configuration {
         let config = self.__configuration(with: realmURL,
                                           fullSynchronization: fullSynchronization,
                                           enableSSLValidation: enableSSLValidation,
@@ -599,11 +630,12 @@ extension SyncUser {
      - warning: NEVER disable SSL validation for a system running in production.
      */
     public func configuration(realmURL: URL? = nil, fullSynchronization: Bool = false,
-                              serverValidationPolicy: ServerValidationPolicy,
-                              urlPrefix: String? = nil) -> Realm.Configuration {
+                              serverValidationPolicy: ServerValidationPolicy = .system,
+                              urlPrefix: String? = nil, clientResyncMode: ClientResyncMode = .manual) -> Realm.Configuration {
         let config = self.__configuration(with: realmURL, fullSynchronization: fullSynchronization)
         let syncConfig = config.syncConfiguration!
         syncConfig.urlPrefix = urlPrefix
+        syncConfig.clientResyncMode = clientResyncMode
         switch serverValidationPolicy {
         case .none:
             syncConfig.enableSSLValidation = false

@@ -33,6 +33,13 @@
 
 using namespace realm;
 
+static_assert(RLMClientResyncAutomaticallyRecoverChanges == static_cast<int>(ClientResetHandling::Recover),
+              "Enum values must match for object store/obj-c versions");
+static_assert(RLMClientResyncDiscardLocalChanges == static_cast<int>(ClientResetHandling::DiscardLocal),
+              "Enum values must match for object store/obj-c versions");
+static_assert(RLMClientResyncManual == static_cast<int>(ClientResetHandling::Manual),
+              "Enum values must match for object store/obj-c versions");
+
 namespace {
 using ProtocolError = realm::sync::ProtocolError;
 
@@ -176,6 +183,14 @@ BOOL isValidRealmURL(NSURL *url) {
     return [NSURL URLWithString:rawStringURL];
 }
 
+- (RLMClientResyncMode)clientResyncMode {
+    return static_cast<RLMClientResyncMode>(_config->client_reset_mode);
+}
+
+- (void)setClientResyncMode:(RLMClientResyncMode)mode {
+    _config->client_reset_mode = static_cast<ClientResetHandling>(mode);
+}
+
 - (instancetype)initWithUser:(RLMSyncUser *)user realmURL:(NSURL *)url {
     return [self initWithUser:user
                      realmURL:url
@@ -253,6 +268,7 @@ BOOL isValidRealmURL(NSURL *url) {
         _config->bind_session_handler = std::move(bindHandler);
         _config->error_handler = std::move(errorHandler);
         _config->is_partial = isPartial;
+        _config->client_reset_mode = ClientResetHandling::Manual;
 
         if (NSString *authorizationHeaderName = [RLMSyncManager sharedManager].authorizationHeaderName) {
             _config->authorization_header_name.emplace(authorizationHeaderName.UTF8String);

@@ -26,6 +26,7 @@
 #import "RLMRealmUtil.hpp"
 #import "RLMRealm_Dynamic.h"
 #import "RLMRealm_Private.hpp"
+#import "RLMSyncManager_Private.h"
 #import "RLMSyncUtil_Private.h"
 #import "shared_realm.hpp"
 
@@ -1381,6 +1382,51 @@
     XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:pathValue]);
     [RLMSyncSession immediatelyHandleError:[theError rlmSync_errorActionToken]];
     XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:pathValue]);
+}
+
+- (void)testClientResyncModes {
+    self.class.managerForCurrentTest.fireErrorsSynchronously = true;
+
+    __block bool errorHanderCalled = false;
+    [RLMSyncManager sharedManager].errorHandler = ^void(NSError *, RLMSyncSession *) {
+        errorHanderCalled = true;
+    };
+
+    NSURL *url = REALM_URL();
+    NSString *sessionName = NSStringFromSelector(_cmd);
+    auto user = [self logInUserForCredentials:[RLMObjectServerTests basicCredentialsWithName:sessionName
+                                                                                    register:true]
+                                       server:[RLMObjectServerTests authServerURL]];
+    auto configuration = [user configurationWithURL:url fullSynchronization:true];
+    auto syncConfig = configuration.syncConfiguration;
+
+    // Manual should call the old error handler
+    syncConfig.clientResyncMode = RLMClientResyncManual;
+    configuration.syncConfiguration = syncConfig;
+    @autoreleasepool {
+        __attribute__((objc_precise_lifetime)) RLMRealm *realm = [RLMRealm realmWithConfiguration:configuration error:nil];
+        [user simulateClientResetErrorForSession:url];
+        XCTAssertTrue(errorHanderCalled);
+    }
+
+    // Automatic should not call the error handler
+    syncConfig.clientResyncMode = RLMClientResyncAutomaticallyRecoverChanges;
+    configuration.syncConfiguration = syncConfig;
+    @autoreleasepool {
+        __attribute__((objc_precise_lifetime)) RLMRealm *realm = [RLMRealm realmWithConfiguration:configuration error:nil];
+        errorHanderCalled = false;
+        [user simulateClientResetErrorForSession:url];
+        XCTAssertFalse(errorHanderCalled);
+    }
+
+    syncConfig.clientResyncMode = RLMClientResyncDiscardLocalChanges;
+    configuration.syncConfiguration = syncConfig;
+    @autoreleasepool {
+        __attribute__((objc_precise_lifetime)) RLMRealm *realm = [RLMRealm realmWithConfiguration:configuration error:nil];
+        errorHanderCalled = false;
+        [user simulateClientResetErrorForSession:url];
+        XCTAssertFalse(errorHanderCalled);
+    }
 }
 
 #pragma mark - Progress Notifications
