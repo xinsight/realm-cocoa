@@ -20,7 +20,7 @@
 
 #import "RLMAccessor.hpp"
 #import "RLMObject_Private.hpp"
-#import "RLMProperty.h"
+#import "RLMProperty_Private.hpp"
 #import "RLMUtil.hpp"
 #import "object.hpp"
 

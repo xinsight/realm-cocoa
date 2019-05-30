@@ -26,12 +26,12 @@ private func nextDynamicDefaultSeed() -> Int {
     return dynamicDefaultSeed
 }
 class SwiftDynamicDefaultObject: Object {
-    @objc dynamic var intCol = nextDynamicDefaultSeed()
-    @objc dynamic var floatCol = Float(nextDynamicDefaultSeed())
-    @objc dynamic var doubleCol = Double(nextDynamicDefaultSeed())
-    @objc dynamic var dateCol = Date(timeIntervalSinceReferenceDate: TimeInterval(nextDynamicDefaultSeed()))
-    @objc dynamic var stringCol = UUID().uuidString
-    @objc dynamic var binaryCol = UUID().uuidString.data(using: .utf8)
+    @ManagedProperty var intCol = nextDynamicDefaultSeed()
+    @ManagedProperty var floatCol = Float(nextDynamicDefaultSeed())
+    @ManagedProperty var doubleCol = Double(nextDynamicDefaultSeed())
+    @ManagedProperty var dateCol = Date(timeIntervalSinceReferenceDate: TimeInterval(nextDynamicDefaultSeed()))
+    @ManagedProperty var stringCol = UUID().uuidString
+    @ManagedProperty var binaryCol = UUID().uuidString.data(using: .utf8)
 
     override static func primaryKey() -> String? {
         return "intCol"

@@ -194,13 +194,14 @@ open class Object: RLMObjectBase, ThreadConfined, RealmCollectionValue {
         guard let prop = objectSchema[key] else {
             throwRealmException("Invalid property name '\(key) for class \(objectSchema.className)")
         }
-        if let accessor = prop.swiftAccessor {
-            return accessor.get(Unmanaged.passUnretained(self).toOpaque() + ivar_getOffset(prop.swiftIvar!))
-        }
+//        if realm == nil, let accessor = prop.swiftAccessor {
+//            let value = accessor.get(Unmanaged.passUnretained(self).toOpaque() + ivar_getOffset(prop.swiftIvar!))
+//            return value is NSNull ? nil : value
+//        }
         if let ivar = prop.swiftIvar, prop.array {
             return object_getIvar(self, ivar)
         }
-        return RLMDynamicGet(self, prop);
+        return RLMDynamicGet(self, prop)
     }
 
     // MARK: Notifications
@@ -520,6 +521,7 @@ extension Optional: ManagedPropertyType where Wrapped: ManagedPropertyType {
 
 extension RealmOptional: ManagedPropertyType where Value: ManagedPropertyType {
     static func _rlmProperty(_ prop: RLMProperty) {
+        prop.name = String(prop.name.dropFirst())
         prop.optional = true
         Value._rlmProperty(prop)
     }
@@ -568,18 +570,23 @@ internal class ObjectUtil {
         return nil
     }
 
-    // Reflect an object, returning only children representing managed Realm properties.
-    private static func getNonIgnoredMirrorChildren(for object: Any) -> [Mirror.Child] {
+    internal class func getSwiftProperties(_ object: RLMObjectBase) -> [RLMProperty] {
+        _ = ObjectUtil.runOnce
+
+        let cls = type(of: object)
+
+        let indexedProperties: Set<String>
         let ignoredPropNames: Set<String>
+        let columnNames = cls._realmColumnNames()
         if let realmObject = object as? Object {
+            indexedProperties = Set(type(of: realmObject).indexedProperties())
             ignoredPropNames = Set(type(of: realmObject).ignoredProperties())
         } else {
+            indexedProperties = Set()
             ignoredPropNames = Set()
         }
         return Mirror(reflecting: object).children.filter { (prop: Mirror.Child) -> Bool in
-            guard let label = prop.label else {
-                return false
-            }
+            guard let label = prop.label else { return false }
             if ignoredPropNames.contains(label) {
                 return false
             }
@@ -593,23 +600,7 @@ internal class ObjectUtil {
                     + " class. Either add the property to the ignored properties list or make it non-lazy.")
             }
             return true
-        }
-    }
-
-    internal class func getSwiftProperties(_ object: RLMObjectBase) -> [RLMProperty] {
-        _ = ObjectUtil.runOnce
-
-        let cls = type(of: object)
-
-        var indexedProperties: Set<String>!
-        let columnNames = cls._realmColumnNames()
-        if let realmObject = object as? Object {
-            indexedProperties = Set(type(of: realmObject).indexedProperties())
-        } else {
-            indexedProperties = Set()
-        }
-
-        return getNonIgnoredMirrorChildren(for: object).compactMap { prop in
+        }.compactMap { prop in
             guard let label = prop.label else { return nil }
             guard let value = prop.value as? ManagedPropertyType else {
                 if class_getProperty(cls, label) != nil {
@@ -626,10 +617,17 @@ internal class ObjectUtil {
 
             let property = RLMProperty()
             property.name = label
-            property.indexed = indexedProperties.contains(label)
-            property.columnName = columnNames?[label]
             valueType._rlmProperty(property)
             value._rlmProperty(property)
+
+            // Recheck ignored properties as the property name may not actually
+            // equal the label name (due to property wrappers)
+            if ignoredPropNames.contains(property.name) {
+                return nil
+            }
+
+            property.indexed = indexedProperties.contains(property.name)
+            property.columnName = columnNames?[property.name]
 
             if let objcProp = class_getProperty(cls, label) {
                 var count: UInt32 = 0

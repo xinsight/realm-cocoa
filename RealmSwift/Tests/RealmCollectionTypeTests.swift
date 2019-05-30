@@ -20,23 +20,23 @@ import XCTest
 import RealmSwift
 
 class CTTAggregateObject: Object {
-    @objc dynamic var intCol = 0
-    @objc dynamic var int8Col = 0
-    @objc dynamic var int16Col = 0
-    @objc dynamic var int32Col = 0
-    @objc dynamic var int64Col = 0
-    @objc dynamic var floatCol = 0 as Float
-    @objc dynamic var doubleCol = 0.0
-    @objc dynamic var boolCol = false
-    @objc dynamic var dateCol = Date()
-    @objc dynamic var trueCol = true
+    @ManagedProperty var intCol = 0
+    @ManagedProperty var int8Col = 0
+    @ManagedProperty var int16Col = 0
+    @ManagedProperty var int32Col = 0
+    @ManagedProperty var int64Col = 0
+    @ManagedProperty var floatCol = 0 as Float
+    @ManagedProperty var doubleCol = 0.0
+    @ManagedProperty var boolCol = false
+    @ManagedProperty var dateCol = Date()
+    @ManagedProperty var trueCol = true
     let stringListCol = List<CTTNullableStringObjectWithLink>()
-    @objc dynamic var linkCol: CTTLinkTarget?
-    @objc dynamic var childIntCol: CTTIntegerObject?
+    @ManagedProperty var linkCol: CTTLinkTarget? = nil
+    @ManagedProperty var childIntCol: CTTIntegerObject? = nil
 }
 
 class CTTIntegerObject: Object {
-    @objc dynamic var intCol = 0
+    @ManagedProperty var intCol = 0
 }
 
 class CTTAggregateObjectList: Object {
@@ -44,12 +44,12 @@ class CTTAggregateObjectList: Object {
 }
 
 class CTTNullableStringObjectWithLink: Object {
-    @objc dynamic var stringCol: String? = ""
-    @objc dynamic var linkCol: CTTLinkTarget?
+    @ManagedProperty var stringCol: String? = ""
+    @ManagedProperty var linkCol: CTTLinkTarget? = nil
 }
 
 class CTTLinkTarget: Object {
-    @objc dynamic var id = 0
+    @ManagedProperty var id = 0
     let stringObjects = LinkingObjects(fromType: CTTNullableStringObjectWithLink.self, property: "linkCol")
     let aggregateObjects = LinkingObjects(fromType: CTTAggregateObject.self, property: "linkCol")
 }

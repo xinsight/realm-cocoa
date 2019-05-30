@@ -181,7 +181,11 @@ void RLMObservationInfo::recordObserver(realm::Row& objectRow, RLMClassInfo *obj
     NSUInteger sep = [keyPath rangeOfString:@"."].location;
     NSString *key = sep == NSNotFound ? keyPath : [keyPath substringToIndex:sep];
     RLMProperty *prop = objectSchema[key];
-    if (prop && prop.array) {
+    if (auto swiftAccessor = prop.swiftAccessor) {
+        [swiftAccessor initializeObject:(char *)(__bridge void *)object + ivar_getOffset(prop.swiftIvar)
+                                 parent:object property:prop];
+    }
+    else if (prop.array) {
         id value = valueForKey(key);
         RLMArray *array = [value isKindOfClass:[RLMListBase class]] ? [value _rlmArray] : value;
         array->_key = key;

@@ -180,7 +180,16 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
 
 // Generic Swift properties can't be dynamic, so KVO doesn't work for them by default
 - (id)valueForUndefinedKey:(NSString *)key {
-    if (Ivar ivar = _objectSchema[key].swiftIvar) {
+    RLMProperty *prop = _objectSchema[key];
+    if (auto swiftAccessor = prop.swiftAccessor) {
+        if (isManagedAccessorClass(self.class)) {
+            return RLMDynamicGet(self, prop);
+        }
+        else {
+            return RLMCoerceToNil([swiftAccessor get:(char *)(__bridge void *)self + ivar_getOffset(prop.swiftIvar)]);
+        }
+    }
+    if (Ivar ivar = prop.swiftIvar) {
         return RLMCoerceToNil(object_getIvar(self, ivar));
     }
     return [super valueForUndefinedKey:key];
@@ -189,7 +198,15 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
 - (void)setValue:(id)value forUndefinedKey:(NSString *)key {
     value = RLMCoerceToNil(value);
     RLMProperty *property = _objectSchema[key];
-    if (Ivar ivar = property.swiftIvar) {
+    if (auto swiftAccessor = property.swiftAccessor) {
+        if (_row.is_attached()) {
+            RLMDynamicValidatedSet(self, key, value);
+        }
+        else {
+            [swiftAccessor set:(char *)(__bridge void *)self + ivar_getOffset(property.swiftIvar) value:value];
+        }
+    }
+    else if (Ivar ivar = property.swiftIvar) {
         if (property.array) {
             value = RLMAsFastEnumeration(value);
             RLMArray *array = [object_getIvar(self, ivar) _rlmArray];
@@ -203,9 +220,10 @@ id RLMCreateManagedAccessor(Class cls, RLMClassInfo *info) {
         else if (property.optional) {
             RLMSetOptional(object_getIvar(self, ivar), value);
         }
-        return;
     }
-    [super setValue:value forUndefinedKey:key];
+    else {
+        [super setValue:value forUndefinedKey:key];
+    }
 }
 
 // overridden at runtime per-class for performance

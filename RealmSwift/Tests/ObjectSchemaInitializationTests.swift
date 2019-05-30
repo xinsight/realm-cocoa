@@ -238,7 +238,7 @@ class SwiftObjectWithStruct: SwiftFakeObject {
 }
 
 class SwiftObjectWithDatePrimaryKey: SwiftFakeObject {
-    @objc dynamic var date = Date()
+    @ManagedProperty var date = Date()
 
     override class func primaryKey() -> String? {
         return "date"
@@ -246,16 +246,16 @@ class SwiftObjectWithDatePrimaryKey: SwiftFakeObject {
 }
 
 class SwiftFakeObjectSubclass: SwiftFakeObject {
-    @objc dynamic var dateCol = Date()
+    @ManagedProperty var dateCol = Date()
 }
 
 // swiftlint:disable:next type_name
 class SwiftObjectWithNonNullableOptionalProperties: SwiftFakeObject {
-    @objc dynamic var optDateCol: Date?
+    @ManagedProperty var optDateCol: Date? = nil
 }
 
 class SwiftObjectWithNonOptionalLinkProperty: SwiftFakeObject {
-    @objc dynamic var objectCol = SwiftBoolObject()
+    @ManagedProperty var objectCol = SwiftBoolObject()
 }
 
 extension Set: RealmOptionalType { }
@@ -265,7 +265,7 @@ class SwiftObjectWithNonRealmOptionalType: SwiftFakeObject {
 }
 
 class SwiftObjectWithBadPropertyName: SwiftFakeObject {
-    @objc dynamic var newValue = false
+    @ManagedProperty var newValue = false
 }
 
 class SwiftObjectWithManagedLazyProperty: SwiftFakeObject {
