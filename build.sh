@@ -521,6 +521,8 @@ case "$COMMAND" in
         sh build.sh osx-swift
 
         if (( $(xcode_version_major) >= 11 )); then
+            sh build.sh osx-catalyst
+            sh build.sh osx-catalyst-swift
             rm -rf "build/*.xcframework"
             find build/DerivedData -name 'Realm.framework' \
                 | grep -v '\-static' \
@@ -587,6 +589,22 @@ case "$COMMAND" in
         clean_retrieve "build/DerivedData/Realm/Build/Products/$CONFIGURATION/RealmSwift.framework" "$destination" "RealmSwift.framework"
         rm -rf "$destination/Realm.framework"
         cp -R build/osx/Realm.framework "$destination"
+        exit 0
+        ;;
+
+    "osx-catalyst")
+        xc "-scheme Realm -configuration $CONFIGURATION OTHER_CFLAGS='-target x86_64-apple-ios13.0-macabi'"
+        clean_retrieve "build/DerivedData/Realm/Build/Products/$CONFIGURATION/Realm.framework" "build/osx-catalyst" "Realm.framework"
+        exit 0
+        ;;
+
+    "osx-catalyst-swift")
+        sh build.sh osx-catalyst
+        xc "-scheme 'RealmSwift' -configuration $CONFIGURATION build OTHER_CFLAGS='-target x86_64-apple-ios13.0-macabi' OTHER_SWIFTFLAGS='-target x86_64-apple-ios13.0-macabi'"
+        destination="build/osx-catalyst/swift-$REALM_XCODE_VERSION"
+        clean_retrieve "build/DerivedData/Realm/Build/Products/$CONFIGURATION/RealmSwift.framework" "$destination" "RealmSwift.framework"
+        rm -rf "$destination/Realm.framework"
+        cp -R build/osx-catalyst/Realm.framework "$destination"
         exit 0
         ;;
 
