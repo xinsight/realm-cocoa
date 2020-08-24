@@ -1,4 +1,5 @@
 [submodule "Realm/ObjectStore"]
 	path = Realm/ObjectStore
-	url = https://github.com/realm/realm-object-store.git
+	# url = https://github.com/realm/realm-object-store.git
+	url = https://github.com/xinsight/realm-object-store.git
 	branch = master
