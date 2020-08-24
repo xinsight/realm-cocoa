@@ -27,6 +27,8 @@
 #import <Realm/RLMSchema.h>
 
 #import "binding_context.hpp"
+#import "shared_realm.hpp"
+
 
 #import <map>
 #import <mutex>
@@ -56,7 +58,17 @@ RLMRealm *RLMGetAnyCachedRealmForPath(std::string const& path) {
 
 RLMRealm *RLMGetThreadLocalCachedRealmForPath(std::string const& path) {
     std::lock_guard<std::mutex> lock(s_realmCacheMutex);
-    return [s_realmsPerPath[path] objectForKey:(__bridge id)pthread_self()];
+    RLMRealm *realm = [s_realmsPerPath[path] objectForKey:(__bridge id)pthread_self()];
+    if (realm && !realm->_realm->is_on_current_thread()) {
+        // We can get here in two cases: if the user is trying to open a
+        // queue-bound Realm from the wrong queue, or if we have a stale cached
+        // Realm which is bound to a thread that no longer exists. In the first
+        // case we'll throw an error later on; in the second we'll just create
+        // a new RLMRealm and replace the cache entry with one bound to the
+        // thread that now exists.
+        realm = nil;
+    }
+    return realm;
 }
 
 void RLMClearRealmCache() {
